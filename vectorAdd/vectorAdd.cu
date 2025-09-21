@@ -34,6 +34,8 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
 
 // For the CUDA runtime routines (prefixed with "cuda_")
 #include <cuda_runtime.h>
@@ -59,6 +61,31 @@ int main(void)
 {
     // Error code to check return values for CUDA calls
     cudaError_t err = cudaSuccess;
+    
+    // Check CUDA device availability first
+    int deviceCount = 0;
+    err = cudaGetDeviceCount(&deviceCount);
+    if (err != cudaSuccess) {
+        fprintf(stderr, "Failed to get CUDA device count (error code %s)!\n", cudaGetErrorString(err));
+        fprintf(stderr, "This usually indicates a driver/runtime version mismatch.\n");
+        fprintf(stderr, "Please check your CUDA driver and runtime versions.\n");
+        return EXIT_FAILURE;
+    }
+    
+    if (deviceCount == 0) {
+        fprintf(stderr, "No CUDA devices found!\n");
+        return EXIT_FAILURE;
+    }
+    
+    printf("Found %d CUDA device(s)\n", deviceCount);
+    
+    // Get device properties for debugging
+    cudaDeviceProp prop;
+    err = cudaGetDeviceProperties(&prop, 0);
+    if (err == cudaSuccess) {
+        printf("Using device 0: %s\n", prop.name);
+        printf("Compute capability: %d.%d\n", prop.major, prop.minor);
+    }
 
     // Print the vector length to be used, and compute its size
     int    numElements = 50000;
