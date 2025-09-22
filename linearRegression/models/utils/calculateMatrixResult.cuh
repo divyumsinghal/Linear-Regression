@@ -8,5 +8,7 @@
 
 template<typename T>
 thrust::host_vector<T> calculate_linear_regression_weights(
-    const thrust::device_vector<thrust::device_vector<T>>& d_vec_x,
-    const thrust::device_vector<T>& d_vec_y);
+    const thrust::device_vector<T>& d_X_flat,
+    const thrust::device_vector<T>& d_vec_y,
+    int n_samples,
+    int n_features);

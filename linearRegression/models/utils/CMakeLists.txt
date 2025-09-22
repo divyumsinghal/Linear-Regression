@@ -5,12 +5,12 @@
 cmake_minimum_required(VERSION 3.18)
 project(Utils LANGUAGES CXX CUDA)
 
-# Set C++ standard
-set(CMAKE_CXX_STANDARD 14)
+# Set C++ standard - CUDA 13.0 requires C++17 minimum
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Set CUDA standard
-set(CMAKE_CUDA_STANDARD 14)
+set(CMAKE_CUDA_STANDARD 17)
 set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 
 # Find required packages
@@ -20,10 +20,11 @@ find_package(CUDAToolkit REQUIRED)
 set(CMAKE_CUDA_ARCHITECTURES 89)
 
 # Create Utils library with CUDA sources and headers
+# Only include files that exist
 add_library(Utils 
-    matrix_utils.cu 
+    matrix_utils.cu
+    matrix_utils.cuh
     calculateMatrixResult.cu
-    matrix_utils.cuh 
     calculateMatrixResult.cuh
 )
 
@@ -69,10 +70,10 @@ target_compile_options(Utils PRIVATE
 )
 
 # Debug and Release configurations
-set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type")
+set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type")
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     target_compile_options(Utils PRIVATE 
-        $<$<COMPILE_LANGUAGE:CUDA>:-G -g -O0>
+        $<$<COMPILE_LANGUAGE:CUDA>:-g -O0>
         $<$<COMPILE_LANGUAGE:CXX>:-g -O0>
     )
     target_compile_definitions(Utils PRIVATE DEBUG=1)
@@ -98,3 +99,12 @@ message(STATUS "  CUDA Architectures: ${CMAKE_CUDA_ARCHITECTURES}")
 message(STATUS "  Build Type: ${CMAKE_BUILD_TYPE}")
 message(STATUS "  C++ Standard: ${CMAKE_CXX_STANDARD}")
 message(STATUS "  CUDA Standard: ${CMAKE_CUDA_STANDARD}")
+message(STATUS "  Source Directory: ${CMAKE_CURRENT_SOURCE_DIR}")
+
+# List all files in the current directory for debugging
+file(GLOB ALL_FILES "${CMAKE_CURRENT_SOURCE_DIR}/*")
+message(STATUS "Files in utils directory:")
+foreach(FILE ${ALL_FILES})
+    get_filename_component(FILENAME ${FILE} NAME)
+    message(STATUS "    ${FILENAME}")
+endforeach()

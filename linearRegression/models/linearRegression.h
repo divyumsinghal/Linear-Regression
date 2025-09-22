@@ -1,9 +1,5 @@
-﻿#pragma once
+#pragma once
 
-#include "utils/calculateMatrixResult.cuh"
-#include "utils/matrix_utils.cuh"
-#include <thrust/device_vector.h>
-#include <thrust/host_vector.h>
 #include <vector>
 
 template<typename data_type>

@@ -1,12 +1,12 @@
 ﻿cmake_minimum_required(VERSION 3.18)
 project(Main LANGUAGES CXX CUDA)
 
-# Set C++ standard
-set(CMAKE_CXX_STANDARD 14)
+# Set C++ standard - CUDA 13.0 requires C++17 minimum
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Set CUDA standard
-set(CMAKE_CUDA_STANDARD 14)
+set(CMAKE_CUDA_STANDARD 17)
 set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 
 # Find required packages
@@ -56,7 +56,7 @@ target_compile_options(Main PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:
 # Debug and Release configurations
 set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type")
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    target_compile_options(Main PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-G -g>)
+    target_compile_options(Main PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-g>)
     target_compile_options(Main PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-g>)
 else()
     target_compile_options(Main PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-O3>)

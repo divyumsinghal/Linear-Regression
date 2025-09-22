@@ -4,26 +4,18 @@
 
 template<typename T>
 thrust::host_vector<T> calculate_linear_regression_weights(
-    const thrust::device_vector<thrust::device_vector<T>>& d_vec_x,
-    const thrust::device_vector<T>& d_vec_y)
+    const thrust::device_vector<T>& d_X_flat,
+    const thrust::device_vector<T>& d_vec_y,
+    int n_samples,
+    int n_features)
 {
-    // Get dimensions
-    int n_samples = d_vec_y.size();
-    int n_features = d_vec_x.size();
     int n_features_with_bias = n_features + 1;
 
     std::cout << "Input dimensions: " << n_samples << " samples, " << n_features << " features\n";
 
-    // Convert thrust vectors to raw device pointers
-    T* d_X_raw;
-    CUDA_CHECK(cudaMalloc(&d_X_raw, n_samples * n_features * sizeof(T)));
-    
-    // Copy data from thrust vectors to contiguous memory
-    for (int j = 0; j < n_features; ++j) {
-        CUDA_CHECK(cudaMemcpy(d_X_raw + j * n_samples, 
-                             thrust::raw_pointer_cast(d_vec_x[j].data()), 
-                             n_samples * sizeof(T), cudaMemcpyDeviceToDevice));
-    }
+    // Get raw pointers from thrust vectors
+    const T* d_X_raw = thrust::raw_pointer_cast(d_X_flat.data());
+    const T* d_y = thrust::raw_pointer_cast(d_vec_y.data());
 
     // Create X matrix with bias column
     T* d_X_with_bias;
@@ -31,9 +23,6 @@ thrust::host_vector<T> calculate_linear_regression_weights(
     
     // Add bias column (column of ones)
     add_bias_column(d_X_with_bias, d_X_raw, n_samples, n_features);
-
-    // Copy y vector
-    T* d_y = const_cast<T*>(thrust::raw_pointer_cast(d_vec_y.data()));
 
     // Print input data
     std::cout << "\nInput Matrix X (with bias):\n";
@@ -149,7 +138,6 @@ thrust::host_vector<T> calculate_linear_regression_weights(
     CUDA_CHECK(cudaMemcpy(h_weights.data(), d_weights, n_features_with_bias * sizeof(T), cudaMemcpyDeviceToHost));
 
     // Cleanup
-    CUDA_CHECK(cudaFree(d_X_raw));
     CUDA_CHECK(cudaFree(d_X_with_bias));
     CUDA_CHECK(cudaFree(d_XtX));
     CUDA_CHECK(cudaFree(d_Xty));
@@ -166,9 +154,11 @@ thrust::host_vector<T> calculate_linear_regression_weights(
 
 // Explicit template instantiations
 template thrust::host_vector<float> calculate_linear_regression_weights(
-    const thrust::device_vector<thrust::device_vector<float>>&, 
-    const thrust::device_vector<float>&);
+    const thrust::device_vector<float>&, 
+    const thrust::device_vector<float>&,
+    int, int);
 
 template thrust::host_vector<double> calculate_linear_regression_weights(
-    const thrust::device_vector<thrust::device_vector<double>>&, 
-    const thrust::device_vector<double>&);
+    const thrust::device_vector<double>&, 
+    const thrust::device_vector<double>&,
+    int, int);

@@ -1,6 +1,14 @@
 cmake_minimum_required(VERSION 3.18)
 project(LinearRegressionCUDA LANGUAGES CXX CUDA)
 
+# Set C++ standard - CUDA 13.0 requires C++17 minimum
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# Set CUDA standard
+set(CMAKE_CUDA_STANDARD 17)
+set(CMAKE_CUDA_STANDARD_REQUIRED ON)
+
 # Add subdirectory for utils
 add_subdirectory(utils)
 

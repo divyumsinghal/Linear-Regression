@@ -1,51 +1,4 @@
-#pragma once
-
-#include <cuda_runtime.h>
-#include <cublas_v2.h>
-#include <cusolverDn.h>
-#include <thrust/device_vector.h>
-#include <thrust/host_vector.h>
-#include <thrust/copy.h>
-#include <cmath>
-#include <functional>
-#include <iostream>
-#include <random>
-#include <stdexcept>
-#include <string>
-#include <cuComplex.h>
-#include <cublas_api.h>
-#include <cuda_runtime_api.h>
-#include <library_types.h>
-
-// CUDA API error checking
-#define CUDA_CHECK(err)                                                                            \
-    do {                                                                                           \
-        cudaError_t err_ = (err);                                                                  \
-        if (err_ != cudaSuccess) {                                                                 \
-            std::printf("CUDA error %d at %s:%d\n", err_, __FILE__, __LINE__);                     \
-            throw std::runtime_error("CUDA error");                                                \
-        }                                                                                          \
-    } while (0)
-
-// cublas API error checking
-#define CUBLAS_CHECK(err)                                                                          \
-    do {                                                                                           \
-        cublasStatus_t err_ = (err);                                                               \
-        if (err_ != CUBLAS_STATUS_SUCCESS) {                                                       \
-            std::printf("cublas error %d at %s:%d\n", err_, __FILE__, __LINE__);                   \
-            throw std::runtime_error("cublas error");                                              \
-        }                                                                                          \
-    } while (0)
-
-// CUSOLVER API error checking
-#define CUSOLVER_CHECK(err)                                                                        \
-    do {                                                                                           \
-        cusolverStatus_t err_ = (err);                                                             \
-        if (err_ != CUSOLVER_STATUS_SUCCESS) {                                                     \
-            std::printf("cusolver error %d at %s:%d\n", err_, __FILE__, __LINE__);                 \
-            throw std::runtime_error("cusolver error");                                            \
-        }                                                                                          \
-    } while (0)
+#include "matrix_utils.cuh"
 
 // CUDA kernel to add bias column
 template<typename T>
@@ -111,5 +64,3 @@ template void print_device_matrix<float>(const float*, int, int, const char*);
 template void print_device_matrix<double>(const double*, int, int, const char*);
 template void print_device_vector<float>(const float*, int, const char*);
 template void print_device_vector<double>(const double*, int, const char*);
-
-// ...existing code... (keep all the previous matrix utility functions)

@@ -1,10 +1,12 @@
-﻿#pragma once
+#pragma once
 
-#include "utils/calculateMatrixResult.cuh"
-#include "utils/matrix_utils.cuh"
-#include <thrust/device_vector.h>
-#include <thrust/host_vector.h>
 #include <vector>
+
+// Forward declarations to avoid including Thrust in main.cpp
+namespace thrust {
+    template<typename T, typename Alloc> class host_vector;
+    template<typename T, typename Alloc> class device_vector;
+}
 
 template<typename data_type>
 class LinearRegression {
