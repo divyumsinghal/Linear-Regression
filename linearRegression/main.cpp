@@ -9,7 +9,7 @@ int main() {
     std::cout << "=== CUDA Linear Regression Calculator ===\n\n";
     
     // Example: small dataset
-    int n_samples = 5, n_features = 2;
+    int n_samples = 3, n_features = 2;  // Exactly determined system
     std::cout << "Dataset: " << n_samples << " samples, " << n_features << " features\n\n";
 
     // Allocate host data
@@ -18,9 +18,13 @@ int main() {
 
     // Fill with simple linear relationship: y = 2*x1 + 3*x2 + 1 + noise
     std::cout << "Generating synthetic data (y = 2*x1 + 3*x2 + 1):\n";
+    // Use orthogonal design matrix for better conditioning
+    std::vector<data_type> x1_vals = {-1.0, 0.0, 1.0};
+    std::vector<data_type> x2_vals = {1.0, -1.0, 1.0};  // Orthogonal to x1
+    
     for (int i = 0; i < n_samples; ++i) {
-        data_type x1 = i + 1.0;           // x1: 1, 2, 3, 4, 5
-        data_type x2 = (i + 1) * 0.5;     // x2: 0.5, 1.0, 1.5, 2.0, 2.5
+        data_type x1 = x1_vals[i];
+        data_type x2 = x2_vals[i];
         
         // Store in column-major format: [x1_1, x1_2, ..., x1_n, x2_1, x2_2, ..., x2_n]
         h_X_flat[0 * n_samples + i] = x1;  // First feature column
@@ -45,11 +49,5 @@ int main() {
     for (std::size_t i = 1; i < weights.size(); ++i) {
         std::cout << "  Feature " << i << " weight: " << weights[i] << "\n";
     }
-    
-    std::cout << "\nExpected weights:\n";
-    std::cout << "  Bias (intercept): 1.000000\n";
-    std::cout << "  Feature 1 weight: 2.000000\n";
-    std::cout << "  Feature 2 weight: 3.000000\n";
-
     return 0;
 }

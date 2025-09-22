@@ -65,8 +65,8 @@ thrust::host_vector<T> calculate_linear_regression_weights(
                                 &beta, d_XtX, n_features_with_bias));
     }
 
-    // Add small regularization to diagonal to handle potential singularity
-    const T regularization = 1e-10;
+    // Add tiny regularization to diagonal to handle numerical precision issues
+    const T regularization = 1e-14;
     T* h_XtX = new T[n_features_with_bias * n_features_with_bias];
     CUDA_CHECK(cudaMemcpy(h_XtX, d_XtX, n_features_with_bias * n_features_with_bias * sizeof(T), cudaMemcpyDeviceToHost));
     for (int i = 0; i < n_features_with_bias; i++) {
