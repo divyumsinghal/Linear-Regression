@@ -1,10 +1,9 @@
-﻿// linearRegression.cuh : Include file for standard system include files,
-// or project specific include files.
+﻿#pragma once
 
-#pragma once
-
-#include "utils/calculateMatrixResult.cu"
-#include "utils/matrix_utils.cu"
+#include "utils/calculateMatrixResult.cuh"
+#include "utils/matrix_utils.cuh"
+#include <thrust/device_vector.h>
+#include <thrust/host_vector.h>
 
 template<typename data_type>
 class LinearRegression {
@@ -16,5 +15,6 @@ public:
     LinearRegression();
     ~LinearRegression();
 
-    thrust::host_vector<data_type> fit(const thrust::device_vector<thrust::device_vector<data_type>>& d_vec_x, const thrust::device_vector<data_type>& d_vec_y);
+    thrust::host_vector<data_type> fit(const thrust::device_vector<thrust::device_vector<data_type>>& d_vec_x, 
+                                      const thrust::device_vector<data_type>& d_vec_y);
 };

@@ -1,8 +1,4 @@
-﻿# CMakeList.txt : CMake project for linearRegression, include source and define
-# project specific logic here.
-#
-
-cmake_minimum_required(VERSION 3.18)
+﻿cmake_minimum_required(VERSION 3.18)
 project(Main LANGUAGES CXX CUDA)
 
 # Set C++ standard
@@ -19,7 +15,7 @@ find_package(CUDAToolkit REQUIRED)
 # Set CUDA architectures (optimized for RTX 4050 - compute capability 8.9)
 set(CMAKE_CUDA_ARCHITECTURES 89)
 
-# add subdirectory for models
+# Add subdirectory for models
 add_subdirectory(models)
 
 # Create executable
@@ -31,8 +27,10 @@ set_target_properties(Main PROPERTIES
     CUDA_RESOLVE_DEVICE_SYMBOLS ON
 )
 
-# Link CUDA libraries
+# Link libraries
 target_link_libraries(Main 
+    LinearRegressionCUDA
+    Utils
     CUDA::cublas
     CUDA::cusolver
     CUDA::cudart
@@ -40,6 +38,7 @@ target_link_libraries(Main
 
 # Include directories
 target_include_directories(Main PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
 )
 

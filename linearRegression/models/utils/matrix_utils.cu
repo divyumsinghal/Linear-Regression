@@ -47,253 +47,69 @@
         }                                                                                          \
     } while (0)
 
-// memory alignment
-#define ALIGN_TO(A, B) (((A + B - 1) / B) * B)
-
-// device memory pitch alignment
-static const size_t device_alignment = 32;
-
-// type traits
-template <typename T> struct traits;
-
-template <> struct traits<float> {
-    // scalar type
-    typedef float T;
-    typedef T S;
-
-    static constexpr T zero = 0.f;
-    static constexpr cudaDataType cuda_data_type = CUDA_R_32F;
-
-    inline static S abs(T val) { return fabs(val); }
-
-    template <typename RNG> inline static T rand(RNG &gen) { return (S)gen(); }
-
-    inline static T add(T a, T b) { return a + b; }
-
-    inline static T mul(T v, double f) { return v * f; }
-};
-
-template <> struct traits<double> {
-    // scalar type
-    typedef double T;
-    typedef T S;
-
-    static constexpr T zero = 0.;
-    static constexpr cudaDataType cuda_data_type = CUDA_R_64F;
-
-    inline static S abs(T val) { return fabs(val); }
-
-    template <typename RNG> inline static T rand(RNG &gen) { return (S)gen(); }
-
-    inline static T add(T a, T b) { return a + b; }
-
-    inline static T mul(T v, double f) { return v * f; }
-};
-
-template <> struct traits<cuFloatComplex> {
-    // scalar type
-    typedef float S;
-    typedef cuFloatComplex T;
-
-    static constexpr T zero = {0.f, 0.f};
-    static constexpr cudaDataType cuda_data_type = CUDA_C_32F;
-
-    inline static S abs(T val) { return cuCabsf(val); }
-
-    template <typename RNG> inline static T rand(RNG &gen) {
-        return make_cuFloatComplex((S)gen(), (S)gen());
-    }
-
-    inline static T add(T a, T b) { return cuCaddf(a, b); }
-    inline static T add(T a, S b) { return cuCaddf(a, make_cuFloatComplex(b, 0.f)); }
-
-    inline static T mul(T v, double f) { return make_cuFloatComplex(v.x * f, v.y * f); }
-};
-
-template <> struct traits<cuDoubleComplex> {
-    // scalar type
-    typedef double S;
-    typedef cuDoubleComplex T;
-
-    static constexpr T zero = {0., 0.};
-    static constexpr cudaDataType cuda_data_type = CUDA_C_64F;
-
-    inline static S abs(T val) { return cuCabs(val); }
-
-    template <typename RNG> inline static T rand(RNG &gen) {
-        return make_cuDoubleComplex((S)gen(), (S)gen());
-    }
-
-    inline static T add(T a, T b) { return cuCadd(a, b); }
-    inline static T add(T a, S b) { return cuCadd(a, make_cuDoubleComplex(b, 0.)); }
-
-    inline static T mul(T v, double f) { return make_cuDoubleComplex(v.x * f, v.y * f); }
-};
-
-template <typename T> void print_matrix(const int &m, const int &n, const T *A, const int &lda);
-
-template <> void print_matrix(const int &m, const int &n, const float *A, const int &lda) {
-    for (int i = 0; i < m; i++) {
-        for (int j = 0; j < n; j++) {
-            std::printf("%0.2f ", A[j * lda + i]);
+// CUDA kernel to add bias column
+template<typename T>
+__global__ void add_bias_kernel(T* d_X_with_bias, const T* d_X, int rows, int cols) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    int idy = blockIdx.y * blockDim.y + threadIdx.y;
+    
+    if (idx < rows && idy < cols + 1) {
+        if (idy == 0) {
+            // First column is bias (ones)
+            d_X_with_bias[idy * rows + idx] = 1.0;
+        } else {
+            // Copy original data
+            d_X_with_bias[idy * rows + idx] = d_X[(idy - 1) * rows + idx];
         }
-        std::printf("\n");
     }
 }
 
-template <> void print_matrix(const int &m, const int &n, const double *A, const int &lda) {
-    for (int i = 0; i < m; i++) {
-        for (int j = 0; j < n; j++) {
-            std::printf("%0.2f ", A[j * lda + i]);
+template<typename T>
+void add_bias_column(T* d_X_with_bias, const T* d_X, int rows, int cols) {
+    dim3 block(16, 16);
+    dim3 grid((rows + block.x - 1) / block.x, (cols + 1 + block.y - 1) / block.y);
+    
+    add_bias_kernel<<<grid, block>>>(d_X_with_bias, d_X, rows, cols);
+    CUDA_CHECK(cudaDeviceSynchronize());
+}
+
+template<typename T>
+void print_device_matrix(const T* d_matrix, int rows, int cols, const char* name) {
+    T* h_matrix = new T[rows * cols];
+    CUDA_CHECK(cudaMemcpy(h_matrix, d_matrix, rows * cols * sizeof(T), cudaMemcpyDeviceToHost));
+    
+    std::cout << name << " (" << rows << "x" << cols << "):\n";
+    for (int i = 0; i < rows; i++) {
+        for (int j = 0; j < cols; j++) {
+            std::cout << h_matrix[j * rows + i] << " ";
         }
-        std::printf("\n");
+        std::cout << "\n";
     }
+    std::cout << "\n";
+    
+    delete[] h_matrix;
 }
 
-template <> void print_matrix(const int &m, const int &n, const cuComplex *A, const int &lda) {
-    for (int i = 0; i < m; i++) {
-        for (int j = 0; j < n; j++) {
-            std::printf("%0.2f + %0.2fj ", A[j * lda + i].x, A[j * lda + i].y);
-        }
-        std::printf("\n");
+template<typename T>
+void print_device_vector(const T* d_vector, int size, const char* name) {
+    T* h_vector = new T[size];
+    CUDA_CHECK(cudaMemcpy(h_vector, d_vector, size * sizeof(T), cudaMemcpyDeviceToHost));
+    
+    std::cout << name << " (" << size << "):\n";
+    for (int i = 0; i < size; i++) {
+        std::cout << h_vector[i] << " ";
     }
+    std::cout << "\n\n";
+    
+    delete[] h_vector;
 }
 
-template <>
-void print_matrix(const int &m, const int &n, const cuDoubleComplex *A, const int &lda) {
-    for (int i = 0; i < m; i++) {
-        for (int j = 0; j < n; j++) {
-            std::printf("%0.2f + %0.2fj ", A[j * lda + i].x, A[j * lda + i].y);
-        }
-        std::printf("\n");
-    }
-}
+// Explicit template instantiations
+template void add_bias_column<float>(float*, const float*, int, int);
+template void add_bias_column<double>(double*, const double*, int, int);
+template void print_device_matrix<float>(const float*, int, int, const char*);
+template void print_device_matrix<double>(const double*, int, int, const char*);
+template void print_device_vector<float>(const float*, int, const char*);
+template void print_device_vector<double>(const double*, int, const char*);
 
-template <typename T> void print_packed_matrix(cublasFillMode_t uplo, const int &n, const T *A);
-
-template <> void print_packed_matrix(cublasFillMode_t uplo, const int &n, const float *A) {
-    size_t off = 0;
-    for (int i = 0; i < n; i++) {
-        for (int j = 0; j < n; j++) {
-            if ((uplo == CUBLAS_FILL_MODE_UPPER && j >= i) ||
-                (uplo == CUBLAS_FILL_MODE_LOWER && j <= i)) {
-                std::printf("%6.2f ", A[off++]);
-            } else if (uplo == CUBLAS_FILL_MODE_UPPER) {
-                std::printf("       ");
-            }
-        }
-        std::printf("\n");
-    }
-}
-
-template <> void print_packed_matrix(cublasFillMode_t uplo, const int &n, const double *A) {
-    size_t off = 0;
-    for (int i = 0; i < n; i++) {
-        for (int j = 0; j < n; j++) {
-            if ((uplo == CUBLAS_FILL_MODE_UPPER && j >= i) ||
-                (uplo == CUBLAS_FILL_MODE_LOWER && j <= i)) {
-                std::printf("%6.2f ", A[off++]);
-            } else if (uplo == CUBLAS_FILL_MODE_UPPER) {
-                std::printf("       ");
-            }
-        }
-        std::printf("\n");
-    }
-}
-
-template <> void print_packed_matrix(cublasFillMode_t uplo, const int &n, const cuComplex *A) {
-    size_t off = 0;
-    for (int i = 0; i < n; i++) {
-        for (int j = 0; j < n; j++) {
-            if ((uplo == CUBLAS_FILL_MODE_UPPER && j >= i) ||
-                (uplo == CUBLAS_FILL_MODE_LOWER && j <= i)) {
-                std::printf("%6.2f + %6.2fj ", A[off].x, A[off].y);
-                off++;
-            } else if (uplo == CUBLAS_FILL_MODE_UPPER) {
-                std::printf("                 ");
-            }
-        }
-        std::printf("\n");
-    }
-}
-
-template <> void print_packed_matrix(cublasFillMode_t uplo, const int &n, const cuDoubleComplex *A) {
-    size_t off = 0;
-    for (int i = 0; i < n; i++) {
-        for (int j = 0; j < n; j++) {
-            if ((uplo == CUBLAS_FILL_MODE_UPPER && j >= i) ||
-                (uplo == CUBLAS_FILL_MODE_LOWER && j <= i)) {
-                std::printf("%6.2f + %6.2fj ", A[off].x, A[off].y);
-                off++;
-            } else if (uplo == CUBLAS_FILL_MODE_UPPER) {
-                std::printf("                 ");
-            }
-        }
-        std::printf("\n");
-    }
-}
-
-template <typename T> void print_vector(const int &m, const T *A);
-
-template <> void print_vector(const int &m, const float *A) {
-    for (int i = 0; i < m; i++) {
-        std::printf("%0.2f ", A[i]);
-    }
-    std::printf("\n");
-}
-
-template <> void print_vector(const int &m, const double *A) {
-    for (int i = 0; i < m; i++) {
-        std::printf("%0.2f ", A[i]);
-    }
-    std::printf("\n");
-}
-
-template <> void print_vector(const int &m, const cuComplex *A) {
-    for (int i = 0; i < m; i++) {
-        std::printf("%0.2f + %0.2fj ", A[i].x, A[i].y);
-    }
-    std::printf("\n");
-}
-
-template <> void print_vector(const int &m, const cuDoubleComplex *A) {
-    for (int i = 0; i < m; i++) {
-        std::printf("%0.2f + %0.2fj ", A[i].x, A[i].y);
-    }
-    std::printf("\n");
-}
-
-// Returns cudaDataType value as defined in library_types.h for the string
-// containing type name
-cudaDataType get_cuda_library_type(std::string type_string) {
-    if (type_string.compare("CUDA_R_16F") == 0)
-        return CUDA_R_16F;
-    else if (type_string.compare("CUDA_C_16F") == 0)
-        return CUDA_C_16F;
-    else if (type_string.compare("CUDA_R_32F") == 0)
-        return CUDA_R_32F;
-    else if (type_string.compare("CUDA_C_32F") == 0)
-        return CUDA_C_32F;
-    else if (type_string.compare("CUDA_R_64F") == 0)
-        return CUDA_R_64F;
-    else if (type_string.compare("CUDA_C_64F") == 0)
-        return CUDA_C_64F;
-    else if (type_string.compare("CUDA_R_8I") == 0)
-        return CUDA_R_8I;
-    else if (type_string.compare("CUDA_C_8I") == 0)
-        return CUDA_C_8I;
-    else if (type_string.compare("CUDA_R_8U") == 0)
-        return CUDA_R_8U;
-    else if (type_string.compare("CUDA_C_8U") == 0)
-        return CUDA_C_8U;
-    else if (type_string.compare("CUDA_R_32I") == 0)
-        return CUDA_R_32I;
-    else if (type_string.compare("CUDA_C_32I") == 0)
-        return CUDA_C_32I;
-    else if (type_string.compare("CUDA_R_32U") == 0)
-        return CUDA_R_32U;
-    else if (type_string.compare("CUDA_C_32U") == 0)
-        return CUDA_C_32U;
-    else
-        throw std::runtime_error("Unknown CUDA datatype");
-}
+// ...existing code... (keep all the previous matrix utility functions)
