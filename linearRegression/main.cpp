@@ -42,7 +42,7 @@ int main() {
     std::cout << std::fixed << std::setprecision(6);
     std::cout << "Calculated weights:\n";
     std::cout << "  Bias (intercept): " << weights[0] << "\n";
-    for (int i = 1; i < weights.size(); ++i) {
+    for (std::size_t i = 1; i < weights.size(); ++i) {
         std::cout << "  Feature " << i << " weight: " << weights[i] << "\n";
     }
     

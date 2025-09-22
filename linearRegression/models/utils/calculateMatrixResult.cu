@@ -50,6 +50,7 @@ thrust::host_vector<T> calculate_linear_regression_weights(
     const T beta = 0.0;
 
     // Calculate X^T * X using cuBLAS
+    // Note: cuBLAS uses column-major format, so we need to be careful with dimensions
     if constexpr (std::is_same_v<T, float>) {
         CUBLAS_CHECK(cublasSgemm(cublas_handle, CUBLAS_OP_T, CUBLAS_OP_N,
                                 n_features_with_bias, n_features_with_bias, n_samples,
@@ -63,6 +64,16 @@ thrust::host_vector<T> calculate_linear_regression_weights(
                                 d_X_with_bias, n_samples,
                                 &beta, d_XtX, n_features_with_bias));
     }
+
+    // Add small regularization to diagonal to handle potential singularity
+    const T regularization = 1e-10;
+    T* h_XtX = new T[n_features_with_bias * n_features_with_bias];
+    CUDA_CHECK(cudaMemcpy(h_XtX, d_XtX, n_features_with_bias * n_features_with_bias * sizeof(T), cudaMemcpyDeviceToHost));
+    for (int i = 0; i < n_features_with_bias; i++) {
+        h_XtX[i * n_features_with_bias + i] += regularization;
+    }
+    CUDA_CHECK(cudaMemcpy(d_XtX, h_XtX, n_features_with_bias * n_features_with_bias * sizeof(T), cudaMemcpyHostToDevice));
+    delete[] h_XtX;
 
     // Calculate X^T * y using cuBLAS
     if constexpr (std::is_same_v<T, float>) {
@@ -113,6 +124,14 @@ thrust::host_vector<T> calculate_linear_regression_weights(
                                        d_workspace, d_pivot, d_info));
     }
 
+    // Check for errors in LU factorization
+    int info_h;
+    CUDA_CHECK(cudaMemcpy(&info_h, d_info, sizeof(int), cudaMemcpyDeviceToHost));
+    if (info_h != 0) {
+        std::cerr << "LU factorization failed with info = " << info_h << std::endl;
+        throw std::runtime_error("LU factorization failed");
+    }
+
     // Copy X^T * y to weights vector (will be overwritten with solution)
     CUDA_CHECK(cudaMemcpy(d_weights, d_Xty, n_features_with_bias * sizeof(T), cudaMemcpyDeviceToDevice));
 
@@ -127,6 +146,13 @@ thrust::host_vector<T> calculate_linear_regression_weights(
                                        n_features_with_bias, 1,
                                        d_XtX, n_features_with_bias,
                                        d_pivot, d_weights, n_features_with_bias, d_info));
+    }
+
+    // Check for errors in solving
+    CUDA_CHECK(cudaMemcpy(&info_h, d_info, sizeof(int), cudaMemcpyDeviceToHost));
+    if (info_h != 0) {
+        std::cerr << "Linear system solve failed with info = " << info_h << std::endl;
+        throw std::runtime_error("Linear system solve failed");
     }
 
     // Print calculated weights
