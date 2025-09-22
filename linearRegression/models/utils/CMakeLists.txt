@@ -1,9 +1,9 @@
-﻿# CMakeList.txt : CMake project for linearRegression, include source and define
+# CMakeList.txt : CMake project for linearRegression, include source and define
 # project specific logic here.
 #
 
 cmake_minimum_required(VERSION 3.18)
-project(Main LANGUAGES CXX CUDA)
+project(Utils LANGUAGES CXX CUDA)
 
 # Set C++ standard
 set(CMAKE_CXX_STANDARD 14)
@@ -19,37 +19,34 @@ find_package(CUDAToolkit REQUIRED)
 # Set CUDA architectures (optimized for RTX 4050 - compute capability 8.9)
 set(CMAKE_CUDA_ARCHITECTURES 89)
 
-# add subdirectory for models
-add_subdirectory(models)
-
 # Create executable
-add_executable(Main main.cpp)
+add_library(Utils matrix_utils.cu calculateMatrixResult.cu)
 
 # Set target properties
-set_target_properties(Main PROPERTIES
+set_target_properties(Utils PROPERTIES
     CUDA_SEPARABLE_COMPILATION ON
     CUDA_RESOLVE_DEVICE_SYMBOLS ON
 )
 
 # Link CUDA libraries
-target_link_libraries(Main 
+target_link_libraries(Utils 
     CUDA::cublas
     CUDA::cusolver
     CUDA::cudart
 )
 
 # Include directories
-target_include_directories(Main PRIVATE
+target_include_directories(Utils PRIVATE
     ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
 )
 
 # Compiler-specific options
 if(CMAKE_COMPILER_IS_GNUCXX)
-    target_compile_options(Main PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-Wall -Wextra>)
+    target_compile_options(Utils PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-Wall -Wextra>)
 endif()
 
 # CUDA compiler options
-target_compile_options(Main PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:
+target_compile_options(Utils PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:
     --extended-lambda
     --expt-relaxed-constexpr
 >)
@@ -57,11 +54,11 @@ target_compile_options(Main PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:
 # Debug and Release configurations
 set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type")
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    target_compile_options(Main PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-G -g>)
-    target_compile_options(Main PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-g>)
+    target_compile_options(Utils PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-G -g>)
+    target_compile_options(Utils PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-g>)
 else()
-    target_compile_options(Main PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-O3>)
-    target_compile_options(Main PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-O3>)
+    target_compile_options(Utils PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-O3>)
+    target_compile_options(Utils PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-O3>)
 endif()
 
 # Print some information
